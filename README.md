@@ -1,9 +1,9 @@
 # Instructions aux candidat-e-s
 
 - Finaliser/sécuriser l'authentification
-- Faire/finir et sécuriser les routes pour voir son client, voir ses comptes/ses users 
+- Faire/finir et sécuriser les routes pour voir son client, ses comptes, ses users 
 - Permettre de se connecter avec un client pour voir ses données
-- Pour la route Account, permet de modifier "uniquement" le nom du compte (pas le montant)
+- Pour la route Account, permettre de modifier "uniquement" le nom du compte (pas le montant)
 
 # Description du projet
 
