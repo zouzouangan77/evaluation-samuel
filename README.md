@@ -139,3 +139,50 @@ Permet de se connecter directement avec un `clientId` (et optionnellement un cou
 | `POST` | `/api/users` | Création d'un utilisateur |
 | `PUT` | `/api/users/{id}` | Mise à jour d'un utilisateur |
 | `DELETE` | `/api/users/{id}` | Suppression d'un utilisateur |
+
+---
+
+## Axes d'amélioration & Perspectives (Production-Ready)
+
+Dans le cadre d'une revue d'architecture et d'une projection vers un environnement de production d'entreprise, voici une analyse détaillée des améliorations à apporter :
+
+### 1. Sécurité applicative & Gestion des identités
+- **Masquage des informations sensibles (Information Disclosure)** :
+  - *Constat* : Actuellement, l'entité `User` expose directement son hash de mot de passe (`password`) lors des appels `GET /api/users`.
+  - *Recommandation* : Séparer strictement le modèle de persistance du modèle de présentation en introduisant des DTOs dédiés (`UserResponseDto` avec `id`, `username`, `clientId`), ou a minima annoter le champ avec `@JsonProperty(access = JsonProperty.Access.WRITE_ONLY)`.
+- **Hachage systématique des mots de passe à la création** :
+  - *Constat* : La méthode `createUser` persiste le mot de passe sans passer par `PasswordUtil.hashPassword()`.
+  - *Recommandation* : Intégrer l'encodage BCrypt systématiquement dans la couche de service avant persistance.
+- **Gestion fine des habilitations (RBAC / Roles)** :
+  - Introduire une hiérarchie de rôles (`ROLE_ADMIN`, `ROLE_CLIENT_ADMIN`, `ROLE_USER`) et sécuriser les méthodes avec `@PreAuthorize("hasRole('ADMIN')")` pour distinguer les opérations d'administration système des opérations métier client.
+- **Gestion des jetons JWT (Cycle de vie & Révocation)** :
+  - Externaliser la clé secrète JWT (`jwt.secret`) dans les variables d'environnement (ex: via Spring Cloud Vault ou AWS Secrets Manager).
+  - Implémenter un mécanisme de jetons de rafraîchissement (**Refresh Tokens**) et une liste de révocation (Blacklist Redis) pour invalider un token avant son expiration en cas de compromission.
+
+### 2. Robustesse, Validation des entrées & Résilience
+- **Validation déclarative des DTOs (`Jakarta Bean Validation`)** :
+  - Ajouter la dépendance `spring-boot-starter-validation`.
+  - Définir des contraintes strictes sur les requêtes entrantes (`@NotBlank`, `@Size(min = 3, max = 50)`, `@Positive`, `@NotNull`) afin de rejeter les charges utiles invalides dès la couche HTTP (retour `400 Bad Request`) avant tout traitement métier.
+- **Gestion centralisée des exceptions (`@RestControllerAdvice`)** :
+  - Éliminer le code verbeux des blocs `try/catch` dispersés dans les contrôleurs.
+  - Mettre en place un `GlobalExceptionHandler` interceptant les exceptions métier (`EntityNotFoundException`, `AccessDeniedException`, `MethodArgumentNotValidException`) et structurant les réponses selon le standard **RFC 7807 (Problem Details for HTTP APIs)** avec les champs `type`, `title`, `status`, `detail`, `instance` et `timestamp`.
+
+### 3. Architecture des données & Persistance
+- **Migration & Versioning de base de données (Flyway / Liquibase)** :
+  - Remplacer l'exécution de requêtes SQL brutes au démarrage (`DataInitializationConfig.java`) par des scripts de migration versionnés (`V1__init_schema.sql`, `V2__seed_data.sql`).
+  - Permet une traçabilité rigoureuse des évolutions de schéma en équipe et garantit la reproductibilité en CI/CD.
+- **Transition vers un SGBDR d'entreprise** :
+  - SQLite est pratique pour un test ou de l'embarqué, mais ne gère pas les accès concurrents intensifs (verrouillage de table).
+  - Basculer sur **PostgreSQL** avec un pool de connexions optimisé via **HikariCP** pour la scalabilité horizontale.
+- **Pagination et tris des listes** :
+  - Remplacer les méthodes retournant des listes complètes (`List<Account>`) par du `Pageable` (`Page<Account>`) avec tri et pagination pour prévenir les risques d'épuisement mémoire (OOM) sur de gros volumes.
+
+### 4. Tests, Qualité & Observabilité
+- **Complétude de la couverture de tests** :
+  - Ajouter des tests de mutation (**Pitest**) et des tests de charge (Gatling / k6) pour évaluer le comportement sous forte concurrence.
+- **Supervision & Métriques de production** :
+  - Intégrer `spring-boot-starter-actuator` couplé à **Micrometer / Prometheus** pour exposer des sondes de santé (`/actuator/health`), de readiness/liveness (Kubernetes) et surveiller les temps de réponse de l'API.
+- **Documentation d'API vivante (OpenAPI / Swagger UI)** :
+  - Intégrer `springdoc-openapi-starter-webmvc-ui` avec configuration OpenAPI 3.0 intégrant la saisie du Bearer JWT directement dans l'interface de test Swagger.
+
+
