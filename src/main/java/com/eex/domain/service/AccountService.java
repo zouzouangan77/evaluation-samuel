@@ -40,12 +40,7 @@ public class AccountService {
             if (accountDetails.getName() != null) {
                 account.setName(accountDetails.getName());
             }
-            if (accountDetails.getAmount() != null) {
-                account.setAmount(accountDetails.getAmount());
-            }
-            if (accountDetails.getClientId() != null) {
-                account.setClientId(accountDetails.getClientId());
-            }
+            // Le montant (amount) et clientId ne sont pas modifiables conformément aux règles métier
             return accountRepository.save(account);
         }
         throw new RuntimeException("Compte introuvable avec l'id " + id);
@@ -59,4 +54,3 @@ public class AccountService {
         }
     }
 }
-
