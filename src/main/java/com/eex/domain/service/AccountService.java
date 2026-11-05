@@ -34,13 +34,17 @@ public class AccountService {
     }
 
     public Account updateAccount(Integer id, Account accountDetails) {
+        return updateAccountName(id, accountDetails != null ? accountDetails.getName() : null);
+    }
+
+    public Account updateAccountName(Integer id, String newName) {
         Optional<Account> optionalAccount = accountRepository.findById(id);
         if (optionalAccount.isPresent()) {
             Account account = optionalAccount.get();
-            if (accountDetails.getName() != null) {
-                account.setName(accountDetails.getName());
+            if (newName != null) {
+                account.setName(newName);
             }
-            // Le montant (amount) et clientId ne sont pas modifiables conformément aux règles métier
+            // Strictement le nom uniquement : le montant (amount) et clientId ne sont jamais modifiés
             return accountRepository.save(account);
         }
         throw new RuntimeException("Compte introuvable avec l'id " + id);

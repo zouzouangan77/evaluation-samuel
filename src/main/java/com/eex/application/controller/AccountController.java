@@ -1,5 +1,6 @@
 package com.eex.application.controller;
 
+import com.eex.application.dto.AccountUpdateRequest;
 import com.eex.domain.entity.Account;
 import com.eex.domain.entity.User;
 import com.eex.domain.service.AccountService;
@@ -59,13 +60,17 @@ public class AccountController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Account> updateAccount(@PathVariable Integer id, @RequestBody Account accountDetails, @AuthenticationPrincipal User currentUser) {
+    public ResponseEntity<Account> updateAccount(
+            @PathVariable Integer id,
+            @RequestBody AccountUpdateRequest updateRequest,
+            @AuthenticationPrincipal User currentUser
+    ) {
         Optional<Account> account = accountService.getAccountById(id);
         if (account.isEmpty() || !Objects.equals(account.get().getClientId(), currentUser.getClientId())) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
         try {
-            Account updatedAccount = accountService.updateAccount(id, accountDetails);
+            Account updatedAccount = accountService.updateAccountName(id, updateRequest.getName());
             return new ResponseEntity<>(updatedAccount, HttpStatus.OK);
         } catch (RuntimeException e) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
