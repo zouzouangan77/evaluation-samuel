@@ -1,0 +1,22 @@
+### 1. Se connecter avec Alice
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "Alice",
+  "password": "aliceSecret"
+}
+
+### 2. Récupérer les comptes (remplacer {{token}} par le token reçu)
+# @name login
+GET http://localhost:8080/api/accounts
+Authorization: Bearer VOTRE_TOKEN_ICI
+
+### 3. Récupérer les utilisateurs
+GET http://localhost:8080/api/users
+Authorization: Bearer VOTRE_TOKEN_ICI
+
+### 4. Récupérer les clients
+GET http://localhost:8080/api/clients
+Authorization: Bearer VOTRE_TOKEN_ICI
+
