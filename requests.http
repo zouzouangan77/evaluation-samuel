@@ -1,4 +1,4 @@
-### 1. Se connecter avec Alice
+### 1. Se connecter avec un utilisateur (ex: Alice)
 POST http://localhost:8080/api/auth/login
 Content-Type: application/json
 
@@ -7,16 +7,32 @@ Content-Type: application/json
   "password": "aliceSecret"
 }
 
-### 2. Récupérer les comptes (remplacer {{token}} par le token reçu)
-# @name login
+### 2. Se connecter avec un client directement (ex: Client 2 - Bernard)
+POST http://localhost:8080/api/auth/client-login
+Content-Type: application/json
+
+{
+  "clientId": 2
+}
+
+### 3. Récupérer les comptes du client connecté
 GET http://localhost:8080/api/accounts
 Authorization: Bearer VOTRE_TOKEN_ICI
 
-### 3. Récupérer les utilisateurs
+### 4. Récupérer son client (/me ou liste)
+GET http://localhost:8080/api/clients/me
+Authorization: Bearer VOTRE_TOKEN_ICI
+
+### 5. Récupérer les utilisateurs associés à ce client
 GET http://localhost:8080/api/users
 Authorization: Bearer VOTRE_TOKEN_ICI
 
-### 4. Récupérer les clients
-GET http://localhost:8080/api/clients
+### 6. Mettre à jour uniquement le nom du compte 1
+PUT http://localhost:8080/api/accounts/1
+Content-Type: application/json
 Authorization: Bearer VOTRE_TOKEN_ICI
 
+{
+  "name": "NOUVEAU_NOM_AMAZON",
+  "amount": 99999.0
+}

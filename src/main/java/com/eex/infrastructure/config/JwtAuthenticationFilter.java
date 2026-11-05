@@ -1,6 +1,8 @@
 package com.eex.infrastructure.config;
 
+import com.eex.domain.entity.Client;
 import com.eex.domain.entity.User;
+import com.eex.domain.service.ClientService;
 import com.eex.domain.service.UserService;
 import com.eex.domain.util.JwtUtil;
 import jakarta.servlet.FilterChain;
@@ -26,6 +28,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final UserService userService;
+    private final ClientService clientService;
 
     @Override
     protected void doFilterInternal(
@@ -43,13 +46,30 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         final String token = authHeader.substring(7);
         final Integer userId = jwtUtil.validateAndGetUserId(token);
+        final Integer clientId = jwtUtil.validateAndGetClientId(token);
 
-        if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            Optional<User> userOptional = userService.getUserById(userId);
-            if (userOptional.isPresent()) {
-                User user = userOptional.get();
+        if (SecurityContextHolder.getContext().getAuthentication() == null) {
+            User principalUser = null;
+
+            if (userId != null) {
+                Optional<User> userOptional = userService.getUserById(userId);
+                if (userOptional.isPresent()) {
+                    principalUser = userOptional.get();
+                }
+            } else if (clientId != null) {
+                // Connexion au niveau du client directement
+                Optional<Client> clientOptional = clientService.getClientById(clientId);
+                if (clientOptional.isPresent()) {
+                    principalUser = new User();
+                    principalUser.setId(null);
+                    principalUser.setUsername("client_" + clientId);
+                    principalUser.setClientId(clientId);
+                }
+            }
+
+            if (principalUser != null) {
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                        user,
+                        principalUser,
                         null,
                         Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
                 );
@@ -61,4 +81,3 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 }
-

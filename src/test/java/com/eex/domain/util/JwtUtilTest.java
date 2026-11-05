@@ -28,9 +28,20 @@ class JwtUtilTest {
     }
 
     @Test
+    void testGenerateClientToken_andValidateSuccess() {
+        Integer clientId = 3;
+        String token = jwtUtil.generateToken(null, clientId);
+
+        assertNotNull(token);
+        assertNull(jwtUtil.validateAndGetUserId(token));
+        assertEquals(clientId, jwtUtil.validateAndGetClientId(token));
+    }
+
+    @Test
     void testValidateInvalidToken() {
         assertNull(jwtUtil.validateAndGetUserId("invalid.token.structure"));
         assertNull(jwtUtil.validateAndGetUserId(null));
+        assertNull(jwtUtil.validateAndGetClientId("invalid.token.structure"));
+        assertNull(jwtUtil.validateAndGetClientId(null));
     }
 }
-

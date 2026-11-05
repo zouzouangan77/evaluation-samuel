@@ -46,7 +46,7 @@ Authorization: Bearer <votre_token_jwt>
 
 ### 1. Authentification (`/api/auth`)
 
-#### Connexion / Obtention d'un jeton JWT
+#### Connexion avec un utilisateur
 - **URL** : `POST /api/auth/login`
 - **Authentification requise** : Non
 - **Corps de requête (JSON)** :
@@ -59,8 +59,27 @@ Authorization: Bearer <votre_token_jwt>
 - **Réponse (200 OK)** :
   ```json
   {
-    "token": "eyJhbGciOiJIUzI1NiJ9...",
+    "token": "eyJhbGciOiJIUzM4NCJ9...",
     "message": "Authentification réussie"
+  }
+  ```
+
+#### Connexion avec un client (`client-login`)
+Permet de se connecter directement avec un `clientId` (et optionnellement un couple utilisateur/mot de passe associé) :
+- **URL** : `POST /api/auth/client-login`
+- **Authentification requise** : Non
+- **Corps de requête (JSON)** :
+  ```json
+  {
+    "clientId": 2
+  }
+  ```
+  *(Ou avec identifiants utilisateur optionnels : `{"clientId": 1, "username": "Alice", "password": "aliceSecret"}`)*
+- **Réponse (200 OK)** :
+  ```json
+  {
+    "token": "eyJhbGciOiJIUzM4NCJ9...",
+    "message": "Authentification client réussie"
   }
   ```
 

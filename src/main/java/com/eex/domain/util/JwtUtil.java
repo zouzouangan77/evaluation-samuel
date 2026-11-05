@@ -1,5 +1,6 @@
 package com.eex.domain.util;
 
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.slf4j.Logger;
@@ -20,15 +21,22 @@ public class JwtUtil {
     private long jwtExpiration;
 
     public String generateToken(Integer userId) {
-        try {
-            String token = Jwts.builder()
-                    .subject(userId.toString())
-                    .issuedAt(new Date())
-                    .expiration(new Date(System.currentTimeMillis() + jwtExpiration))
-                    .signWith(Keys.hmacShaKeyFor(jwtSecret.getBytes()))
-                    .compact();
+        return generateToken(userId, null);
+    }
 
-            logger.info("Jeton généré avec succès pour l'utilisateur : " + userId);
+    public String generateToken(Integer userId, Integer clientId) {
+        try {
+            var builder = Jwts.builder()
+                    .subject(userId != null ? userId.toString() : "CLIENT_" + clientId)
+                    .issuedAt(new Date())
+                    .expiration(new Date(System.currentTimeMillis() + jwtExpiration));
+
+            if (clientId != null) {
+                builder.claim("clientId", clientId);
+            }
+
+            String token = builder.signWith(Keys.hmacShaKeyFor(jwtSecret.getBytes())).compact();
+            logger.info("Jeton généré avec succès pour userId: " + userId + ", clientId: " + clientId);
             return token;
         } catch (Exception e) {
             logger.error("Erreur lors de la génération du jeton : " + e.getMessage());
@@ -38,19 +46,47 @@ public class JwtUtil {
 
     public Integer validateAndGetUserId(String token) {
         try {
-            String userId = Jwts.parser()
-                    .verifyWith(Keys.hmacShaKeyFor(jwtSecret.getBytes()))
-                    .build()
-                    .parseSignedClaims(token)
-                    .getPayload()
-                    .getSubject();
-
-            logger.info("Jeton validé avec succès pour l'utilisateur : " + userId);
-            return Integer.parseInt(userId);
+            Claims payload = getClaims(token);
+            if (payload == null) {
+                return null;
+            }
+            String subject = payload.getSubject();
+            if (subject != null && !subject.startsWith("CLIENT_")) {
+                return Integer.parseInt(subject);
+            }
+            return null;
         } catch (Exception e) {
-            logger.error("Erreur lors de la validation du jeton : " + e.getMessage());
+            logger.error("Erreur lors de la validation du userId du jeton : " + e.getMessage());
             return null;
         }
     }
-}
 
+    public Integer validateAndGetClientId(String token) {
+        try {
+            Claims payload = getClaims(token);
+            if (payload == null) {
+                return null;
+            }
+            Integer clientId = payload.get("clientId", Integer.class);
+            if (clientId != null) {
+                return clientId;
+            }
+            String subject = payload.getSubject();
+            if (subject != null && subject.startsWith("CLIENT_")) {
+                return Integer.parseInt(subject.replace("CLIENT_", ""));
+            }
+            return null;
+        } catch (Exception e) {
+            logger.error("Erreur lors de la validation du clientId du jeton : " + e.getMessage());
+            return null;
+        }
+    }
+
+    private Claims getClaims(String token) {
+        return Jwts.parser()
+                .verifyWith(Keys.hmacShaKeyFor(jwtSecret.getBytes()))
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+    }
+}

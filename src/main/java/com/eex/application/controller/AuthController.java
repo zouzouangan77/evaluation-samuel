@@ -1,8 +1,11 @@
 package com.eex.application.controller;
 
 import com.eex.application.dto.AuthResponse;
+import com.eex.application.dto.ClientLoginRequest;
 import com.eex.application.dto.LoginRequest;
+import com.eex.domain.entity.Client;
 import com.eex.domain.entity.User;
+import com.eex.domain.service.ClientService;
 import com.eex.domain.service.UserService;
 import com.eex.domain.util.JwtUtil;
 import com.eex.domain.util.PasswordUtil;
@@ -14,7 +17,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Objects;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -22,7 +25,7 @@ import java.util.Objects;
 public class AuthController {
 
     private final UserService userService;
-
+    private final ClientService clientService;
     private final JwtUtil jwtUtil;
 
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
@@ -47,10 +50,52 @@ public class AuthController {
             return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
         }
 
-        String token = jwtUtil.generateToken(user.getId());
+        String token = jwtUtil.generateToken(user.getId(), user.getClientId());
         logger.info("Connexion réussie pour l'utilisateur : " + loginRequest.getUsername());
 
         AuthResponse response = new AuthResponse(token, "Authentification réussie");
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @PostMapping("/client-login")
+    public ResponseEntity<AuthResponse> clientLogin(@RequestBody ClientLoginRequest clientLoginRequest) {
+        logger.info("Tentative de connexion par client : clientId=" + clientLoginRequest.getClientId() + ", username=" + clientLoginRequest.getUsername());
+
+        if (clientLoginRequest.getClientId() == null) {
+            AuthResponse response = new AuthResponse(null, "L'identifiant clientId est requis");
+            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        }
+
+        Optional<Client> clientOptional = clientService.getClientById(clientLoginRequest.getClientId());
+        if (clientOptional.isEmpty()) {
+            logger.warn("Client non trouvé : " + clientLoginRequest.getClientId());
+            AuthResponse response = new AuthResponse(null, "Client non trouvé");
+            return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
+        }
+
+        // Si des identifiants utilisateur sont également fournis, on les valide pour ce client
+        if (clientLoginRequest.getUsername() != null && clientLoginRequest.getPassword() != null) {
+            List<User> users = userService.getUsersByClientId(clientLoginRequest.getClientId()).stream()
+                    .filter(u -> u.getUsername().equals(clientLoginRequest.getUsername()))
+                    .toList();
+
+            if (users.isEmpty() || !PasswordUtil.matches(clientLoginRequest.getPassword(), users.get(0).getPassword())) {
+                logger.warn("Identifiants utilisateur invalides pour le client : " + clientLoginRequest.getClientId());
+                AuthResponse response = new AuthResponse(null, "Identifiants invalides pour ce client");
+                return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
+            }
+
+            User user = users.get(0);
+            String token = jwtUtil.generateToken(user.getId(), clientLoginRequest.getClientId());
+            AuthResponse response = new AuthResponse(token, "Authentification client réussie");
+            return new ResponseEntity<>(response, HttpStatus.OK);
+        }
+
+        // Connexion directe avec le clientId
+        String token = jwtUtil.generateToken(null, clientLoginRequest.getClientId());
+        logger.info("Connexion client réussie pour le clientId : " + clientLoginRequest.getClientId());
+
+        AuthResponse response = new AuthResponse(token, "Authentification client réussie");
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
@@ -66,16 +111,17 @@ public class AuthController {
 
         String token = authHeader.substring(7);
         Integer userId = jwtUtil.validateAndGetUserId(token);
+        Integer clientId = jwtUtil.validateAndGetClientId(token);
 
-        if (userId == null) {
+        if (userId == null && clientId == null) {
             logger.warn("Jeton invalide ou expiré");
             AuthResponse response = new AuthResponse(null, "Jeton invalide ou expiré");
             return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
         }
 
-        logger.info("Jeton valide pour l'utilisateur : " + userId);
-        AuthResponse response = new AuthResponse(token, "Jeton valide pour l'utilisateur : " + userId);
+        String info = userId != null ? "utilisateur : " + userId : "client : " + clientId;
+        logger.info("Jeton valide pour " + info);
+        AuthResponse response = new AuthResponse(token, "Jeton valide pour " + info);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 }
-
